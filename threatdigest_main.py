@@ -17,9 +17,17 @@ from modules.output_writer import (
 from modules.utils import get_current_hour_slug, get_today_slug
 
 # ==== Logging Setup ====
+log_dir = os.path.join("data", "logs")
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, f"run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()  # Still prints to console
+    ]
 )
 
 def enrich_articles(articles):
