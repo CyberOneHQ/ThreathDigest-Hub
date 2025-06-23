@@ -8,6 +8,7 @@ from modules.feed_fetcher import fetch_articles
 from modules.feed_loader import load_feeds_from_files
 from modules.deduplicator import deduplicate_articles
 from modules.language_tools import detect_language, translate_text
+from modules.article_scraper import extract_article_content
 from modules.ai_classifier import classify_article
 from modules.output_writer import (
     write_hourly_output,
@@ -37,6 +38,7 @@ def enrich_articles(articles):
         lang = detect_language(article["title"])
         translated_title = translate_text(article["title"], lang="en")
         classification = classify_article(translated_title)
+        full_content = extract_article_content(article["link"])
 
         article.update({
             "translated_title": translated_title,
@@ -44,13 +46,15 @@ def enrich_articles(articles):
             "is_cyber_attack": classification.get("is_cyber_attack", False),
             "category": classification.get("category", "Unknown"),
             "confidence": classification.get("confidence", 0),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
+            "full_content": full_content
         })
 
         if article["is_cyber_attack"]:
             enriched.append(article)
 
     return enriched
+
 
 # ==== Main Execution ====
 def main():
