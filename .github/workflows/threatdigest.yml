@@ -31,5 +31,6 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           ATRANS_API_KEY: ${{ secrets.ATRANS_API_KEY }}
           ATRANS_REGION: ${{ secrets.ATRANS_REGION }}
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           python threatdigest_main.py
