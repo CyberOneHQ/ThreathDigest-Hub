@@ -1,12 +1,11 @@
 import os
 import json
 import logging
-from openai import OpenAI
+import openai
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Set OpenAI API key from environment
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Standard category list
 CATEGORIES = [
     "Ransomware",
     "Phishing",
@@ -24,7 +23,6 @@ CATEGORIES = [
     "General Cyber Threat"
 ]
 
-# GPT system prompt
 SYSTEM_PROMPT = (
     "You are a cybersecurity analyst. You will receive a news headline. "
     "Your job is to classify whether it is related to a cyberattack or not. "
@@ -34,24 +32,20 @@ SYSTEM_PROMPT = (
 )
 
 def classify_headline(headline: str) -> dict:
-    """
-    Uses OpenAI GPT-3.5 to classify a news headline.
-    Returns structured JSON dict.
-    """
     try:
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"Classify this headline: {headline}"}
         ]
 
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
             messages=messages,
             temperature=0.2,
             max_tokens=150
         )
 
-        gpt_reply = response.choices[0].message.content.strip()
+        gpt_reply = response['choices'][0]['message']['content'].strip()
         return json.loads(gpt_reply)
 
     except Exception as e:
