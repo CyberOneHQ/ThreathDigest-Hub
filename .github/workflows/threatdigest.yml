@@ -2,7 +2,7 @@ name: ThreatDigest Collector
 
 on:
   schedule:
-    - cron: '25 * * * *'  # Runs every hour at 25m past
+    - cron: '25 * * * *'  # Every hour at 25 minutes
   workflow_dispatch:
 
 jobs:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -29,4 +29,4 @@ jobs:
           AZURE_TRANSLATOR_KEY: ${{ secrets.AZURE_TRANSLATOR_KEY }}
           AZURE_TRANSLATOR_REGION: ${{ secrets.AZURE_TRANSLATOR_REGION }}
         run: |
-          python threatdigest_main.py
+          python src/threatdigest_main.py
