@@ -1,3 +1,5 @@
+# modules/ai_classifier.py
+
 import os
 import json
 import logging
@@ -31,11 +33,11 @@ SYSTEM_PROMPT = (
     "{\"is_cyber_attack\": true/false, \"category\": \"<category>\", \"confidence\": 0-100}"
 )
 
-def classify_headline(headline: str) -> dict:
+def classify_article(title: str) -> dict:
     try:
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"Classify this headline: {headline}"}
+            {"role": "user", "content": f"Classify this headline: {title}"}
         ]
 
         response = openai.ChatCompletion.create(
@@ -49,7 +51,7 @@ def classify_headline(headline: str) -> dict:
         return json.loads(gpt_reply)
 
     except Exception as e:
-        logging.error(f"[GPT Error] Failed to classify headline:\n{headline}\nError: {e}")
+        logging.error(f"[GPT Error] Failed to classify headline:\n{title}\nError: {e}")
         return {
             "is_cyber_attack": False,
             "category": "General Cyber Threat",
