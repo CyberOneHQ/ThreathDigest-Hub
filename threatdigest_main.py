@@ -1,8 +1,9 @@
-#ThreathDigest-Hub/threatdigest_main.py
-
+# ==== Module Imports ====
 import os
 import logging
 from datetime import datetime
+
+# ==== Local Modules ====
 from modules.feed_fetcher import fetch_articles
 from modules.feed_loader import load_feeds_from_files
 from modules.deduplicator import deduplicate_articles
@@ -15,6 +16,7 @@ from modules.output_writer import (
 )
 from modules.utils import get_current_hour_slug, get_today_slug
 
+# ==== Logging Setup ====
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(levelname)s | %(message)s',
