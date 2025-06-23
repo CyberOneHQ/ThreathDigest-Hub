@@ -1,91 +1,93 @@
+# threatdigest_main.py
+
 import os
 import logging
-import hashlib
-from datetime import datetime
+from dotenv import load_dotenv
+
+from modules.feed_loader import load_feeds_from_files
 from modules.feed_fetcher import fetch_articles_multithreaded
 from modules.language_tools import detect_language, translate_text
-from modules.ai_classifier import classify_headline
-from modules.utils import load_yaml_file, ensure_output_directory
-from modules.output_writer import write_hourly_output, write_daily_output, write_rss_output
 from modules.deduplicator import deduplicate
+from modules.ai_classifier import classify_headline
+from modules.utils import get_current_hour_slug, get_today_slug
+from modules.output_writer import write_hourly_output, write_daily_output, write_rss_output
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("logs/threatdigest.log"),
-        logging.StreamHandler()
-    ]
-)
+# Optional full text if needed in future:
+# from modules.article_scraper import extract_full_text
 
-# Deduplication cache (in-memory for one run)
-dedup_cache = set()
+# Load environment variables (for local dev)
+load_dotenv()
 
-def hash_article(article):
-    title = article.get("title", "")
-    link = article.get("link", "")
-    return hashlib.sha256((title + link).encode("utf-8")).hexdigest()
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
-def process_articles(articles):
-    processed = []
-    for article in articles:
-        article_hash = hash_article(article)
-        if article_hash in dedup_cache:
-            logging.debug(f"Skipped duplicate (in-memory): {article['title']}")
-            continue
-        dedup_cache.add(article_hash)
-
-        # Detect and translate
+def enrich_articles(raw_articles):
+    enriched = []
+    for article in raw_articles:
+        # Detect language and translate if needed
         lang = detect_language(article["title"])
-        article["translated_title"] = translate_text(article["title"], lang) if lang != "en" else article["title"]
-
-        # Classify
-        classification = classify_headline(article["translated_title"])
-        article["classification"] = classification
-        article["processed_at"] = datetime.utcnow().isoformat()
-
-        if classification.get("is_cyber_attack"):
-            processed.append(article)
-            logging.info(f"[CYBER] {article['translated_title']} → {classification}")
+        if lang != "en":
+            translated_title = translate_text(article["title"], to_language="en")
         else:
-            logging.debug(f"[SKIP] {article['translated_title']} → {classification}")
+            translated_title = article["title"]
 
-    return processed
+        # Classify with OpenAI
+        classification = classify_headline(translated_title)
+
+        enriched.append({
+            "title": translated_title,
+            "original_title": article["title"],
+            "link": article["link"],
+            "published": article["published"],
+            "summary": article["summary"],
+            "source": article["source"],
+            "language": lang,
+            "category": classification.get("category", "Unknown"),
+            "is_cyber_attack": classification.get("is_cyber_attack", False),
+            "confidence": classification.get("confidence", 0),
+            "hash": article.get("hash")
+        })
+
+    return enriched
 
 def main():
-    logging.info("=== ThreatDigest Run Started ===")
+    logging.info("==== Starting ThreatDigest Main Run ====")
 
-    feeds_path = "config/threatdigest.yml"
-    if not os.path.exists(feeds_path):
-        logging.error("Feed config not found at config/threatdigest.yml")
-        return
+    # Load feeds from all configs
+    feed_files = [
+        "config/feeds_bing.yaml",
+        "config/feeds_google.yaml",
+        "config/feeds_native.yaml"
+    ]
+    feeds = load_feeds_from_files(feed_files)
 
-    feeds = load_yaml_file(feeds_path)
     if not feeds:
-        logging.warning("No feeds loaded from config.")
+        logging.warning("No feeds found. Exiting.")
         return
 
-    all_articles = fetch_articles_multithreaded(feeds)
-    logging.info(f"Fetched {len(all_articles)} articles from feeds")
+    # Step 1: Fetch articles
+    raw_articles = fetch_articles_multithreaded(feeds)
+    if not raw_articles:
+        logging.info("No articles fetched.")
+        return
 
-    enriched = process_articles(all_articles)
-    logging.info(f"{len(enriched)} articles classified as cyberattacks")
-
-    # De-duplicate using persistent state
-    unique_articles = deduplicate(enriched)
+    # Step 2: Deduplicate
+    unique_articles = deduplicate(raw_articles)
     if not unique_articles:
-        logging.info("No new unique articles to store.")
+        logging.info("No new unique articles.")
         return
 
-    ensure_output_directory()
+    # Step 3: Enrich and classify
+    enriched_articles = enrich_articles(unique_articles)
 
-    # Write to all output types
-    write_hourly_output(unique_articles)
-    write_daily_output(unique_articles)
-    write_rss_output(unique_articles)
+    # Step 4: Write output
+    hour_slug = get_current_hour_slug()
+    day_slug = get_today_slug()
 
-    logging.info("=== ThreatDigest Run Completed ===")
+    write_hourly_output(enriched_articles, hour_slug)
+    write_daily_output(enriched_articles, day_slug)
+    write_rss_output(enriched_articles)
+
+    logging.info("==== ThreatDigest Run Complete ====")
 
 if __name__ == "__main__":
     main()
