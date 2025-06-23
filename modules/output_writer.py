@@ -40,6 +40,7 @@ def write_rss_output(articles):
         fe = fg.add_entry()
         fe.title(article.get("title", "No Title"))
         fe.link(href=article.get("link", "#"))
+        fe.description(article.get("summary", ""))
         fe.pubDate(article.get("published", datetime.utcnow().isoformat()))
 
     ensure_dir(RSS_PATH.parent)
