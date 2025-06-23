@@ -37,3 +37,8 @@ def fetch_articles_multithreaded(feeds_config):
         t.join()
 
     return articles
+
+def fetch_articles(feeds_config):
+    global articles
+    articles = []
+    return fetch_articles_multithreaded(feeds_config)
