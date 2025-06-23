@@ -9,6 +9,7 @@ from modules.feed_loader import load_feeds_from_files
 from modules.deduplicator import deduplicate_articles
 from modules.language_tools import detect_language, translate_text
 from modules.article_scraper import extract_article_content
+from modules.ai_summarizer import summarize_content 
 from modules.ai_classifier import classify_article
 from modules.output_writer import (
     write_hourly_output,
@@ -32,15 +33,25 @@ logging.basicConfig(
 )
 
 # ==== Article Enrichment ====
-def enrich_articles(articles):
+def enrich_articles(articles, summarize=False):
     enriched = []
+
     for article in articles:
         lang = detect_language(article["title"])
         translated_title = translate_text(article["title"], lang="en")
+
         classification = classify_article(translated_title)
+
+        # Extract full content
         full_content = extract_article_content(article["link"])
-        logging.info(f"Extracted {len(full_content)} characters from {article['link']}")
-        
+        if full_content:
+            logging.info(f"Extracted {len(full_content)} characters from {article['link']}")
+        else:
+            logging.warning(f"No content extracted from {article['link']}")
+
+        # GPT summarization (optional)
+        summary = summarize_content(full_content) if summarize and full_content else ""
+
         article.update({
             "translated_title": translated_title,
             "language": lang,
@@ -48,6 +59,7 @@ def enrich_articles(articles):
             "category": classification.get("category", "Unknown"),
             "confidence": classification.get("confidence", 0),
             "full_content": full_content,
+            "summary_gpt": summary,
             "timestamp": datetime.utcnow().isoformat()
         })
 
@@ -55,7 +67,6 @@ def enrich_articles(articles):
             enriched.append(article)
 
     return enriched
-
 
 # ==== Main Execution ====
 def main():
