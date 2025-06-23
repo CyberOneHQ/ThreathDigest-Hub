@@ -1,37 +1,39 @@
-import os
-import yaml
+import feedparser
+import requests
+import threading
+import hashlib
 import logging
-from pathlib import Path
 
-CONFIG_DIR = Path(__file__).parent.parent / "config"
-FEED_FILES = ["feeds_google.yaml", "feeds_bing.yaml", "feeds_native.yaml"]
+# Shared article list and lock
+articles = []
+lock = threading.Lock()
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
-
-def load_yaml_file(filepath):
+def fetch_feed(url):
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
-            logging.info(f"Loaded {filepath.name} successfully.")
-            return data.get('feeds', [])
+        parsed = feedparser.parse(url)
+        with lock:
+            for entry in parsed.entries:
+                article_hash = hashlib.sha256((entry.title + entry.link).encode()).hexdigest()
+                articles.append({
+                    'title': entry.title,
+                    'link': entry.link,
+                    'published': entry.get('published', ''),
+                    'summary': entry.get('summary', ''),
+                    'hash': article_hash,
+                    'source': url
+                })
+        logging.info(f"Fetched: {url} with {len(parsed.entries)} entries.")
     except Exception as e:
-        logging.error(f"Error loading YAML file {filepath.name}: {e}")
-        return []
+        logging.error(f"Error fetching {url}: {e}")
 
-def load_all_feeds():
-    all_feeds = []
-    for feed_file in FEED_FILES:
-        filepath = CONFIG_DIR / feed_file
-        if filepath.exists():
-            feeds = load_yaml_file(filepath)
-            all_feeds.extend(feeds)
-        else:
-            logging.warning(f"Feed config file not found: {filepath}")
-    logging.info(f"Total feeds loaded: {len(all_feeds)}")
-    return all_feeds
+def fetch_articles_multithreaded(feeds_config):
+    threads = []
+    for feed in feeds_config:
+        t = threading.Thread(target=fetch_feed, args=(feed['url'],))
+        t.start()
+        threads.append(t)
 
-if __name__ == "__main__":
-    feeds = load_all_feeds()
-    print(f"Feeds loaded: {len(feeds)}")
-    for feed in feeds:
-        print(feed)
+    for t in threads:
+        t.join()
+
+    return articles
