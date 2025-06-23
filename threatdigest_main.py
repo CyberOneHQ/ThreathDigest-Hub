@@ -75,8 +75,9 @@ def main():
     hour_slug = get_current_hour_slug()
     day_slug = get_today_slug()
 
-    write_hourly_output(enriched_articles, hour_slug)
-    write_daily_output(enriched_articles, day_slug)
+    # Save outputs
+    write_hourly_output(enriched_articles)
+    write_daily_output(enriched_articles)
     write_rss_output(enriched_articles)
 
     logging.info("==== ThreatDigest Run Complete ====")
