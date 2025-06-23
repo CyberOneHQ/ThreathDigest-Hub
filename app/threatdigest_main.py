@@ -3,11 +3,12 @@ import sys
 import logging
 import concurrent.futures
 from datetime import datetime
+from langdetect import detect
 
 # Ensure modules directory is accessible
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Modules imports
+# Project modules imports
 from modules.feed_fetcher import load_all_feeds
 from modules.deduplicator import deduplicate
 from modules.article_scraper import extract_full_text
@@ -23,7 +24,7 @@ logging.basicConfig(
     format='%(asctime)s | %(levelname)s | %(message)s'
 )
 
-def fetch_and_process_feed(feed):
+def fetch_feed(feed):
     from feedparser import parse
     try:
         parsed_feed = parse(feed['url'])
@@ -43,7 +44,7 @@ def fetch_and_process_feed(feed):
         return []
 
 def main():
-    logging.info("ThreatDigest Hub started")
+    logging.info("ThreatDigest Hub pipeline started")
     print("[*] Loading feeds configuration...")
 
     # Step 1: Unified YAML loading
@@ -51,9 +52,9 @@ def main():
     logging.info(f"Total feeds loaded: {len(feeds)}")
 
     # Step 2: Multithreaded RSS feed fetching
-    print("[*] Fetching articles from feeds (multithreaded)...")
+    print("[*] Fetching articles (multithreaded)...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-        results = executor.map(fetch_and_process_feed, feeds)
+        results = executor.map(fetch_feed, feeds)
 
     # Flatten results
     articles = [article for sublist in results for article in sublist]
@@ -64,13 +65,23 @@ def main():
     articles = deduplicate(articles)
     logging.info(f"Articles after deduplication: {len(articles)}")
 
-    # Step 4: Language detection and translation (Azure Translator)
-    print("[*] Translating non-English headlines...")
+    # Step 4: Language detection & Azure translation
+    print("[*] Detecting language and translating headlines...")
     for article in articles:
-        article['translated_title'] = translate_text(article['title'], to_language='en')
+        try:
+            detected_lang = detect(article['title'])
+            if detected_lang != 'en':
+                article['translated_title'] = translate_text(article['title'], to_language='en')
+                logging.info(f"Translated '{article['title']}' → '{article['translated_title']}'")
+            else:
+                article['translated_title'] = article['title']
+                logging.info(f"No translation needed: '{article['title']}'")
+        except Exception as e:
+            logging.error(f"Language detection/translation failed for '{article['title']}': {e}")
+            article['translated_title'] = article['title']
 
     # Step 5: GPT-based classification & IOC extraction
-    print("[*] Classifying articles and extracting metadata...")
+    print("[*] Classifying articles (GPT) and extracting metadata...")
     for article in articles:
         content = extract_full_text(article['link']) or article['translated_title']
         classification = classify_article(content)
@@ -82,9 +93,9 @@ def main():
     timestamp = datetime.utcnow().strftime('%Y-%m-%d_%H%M')
     generate_rss_output(articles, output_dir, timestamp)
 
-    logging.info(f"Structured outputs generated at {timestamp}")
+    logging.info(f"Outputs generated for timestamp: {timestamp}")
 
-    # Step 7: Logging, notifications & alerts (optional, currently logging implemented)
+    # Step 7: Logging completed
     logging.info("ThreatDigest Hub pipeline completed successfully")
     print(f"[✓] Pipeline execution complete. Processed {len(articles)} articles.")
 
@@ -93,4 +104,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         logging.critical(f"Unhandled exception: {e}", exc_info=True)
-        print("[✗] An error occurred, check the log for details.")
+        print("[✗] An error occurred, please check the log for details.")
