@@ -6,7 +6,5 @@ beautifulsoup4
 readability-lxml
 python-dotenv
 newspaper3k
-requests
 pyyaml
-requests
 langdetect
