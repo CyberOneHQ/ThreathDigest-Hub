@@ -1,3 +1,11 @@
-- https://thehackernews.com/rss.xml
-- https://www.bleepingcomputer.com/feed/
-- https://www.cisa.gov/news.xml
+- url: https://feeds.feedburner.com/TheHackersNews
+  category: Native
+  region: Global
+
+- url: https://www.securityweek.com/feed
+  category: Native
+  region: US
+
+- url: https://www.darkreading.com/rss.xml
+  category: Native
+  region: Global
