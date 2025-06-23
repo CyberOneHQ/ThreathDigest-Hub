@@ -1,0 +1,21 @@
+feeds:
+- category: intel_blog
+  region: Global
+  source: Talos
+  url: https://blog.talosintelligence.com/rss/
+- category: intel_blog
+  region: Global
+  source: KrebsOnSecurity
+  url: https://krebsonsecurity.com/feed/
+- category: intel_blog
+  region: Global
+  source: TheHackerNews
+  url: https://thehackernews.com/feeds/posts/default
+- category: intel_blog
+  region: Global
+  source: RecordedFuture
+  url: https://www.recordedfuture.com/feed
+- category: intel_blog
+  region: Global
+  source: ThreatPost
+  url: https://threatpost.com/feed/

@@ -1,0 +1,13 @@
+feeds:
+- category: google_news
+  region: US
+  source: Google
+  url: https://news.google.com/rss/search?tbm=nws&q=when:12h+cyber+attack&scoring=n&hl=en-US&gl=US&ceid=US:en
+- category: google_news
+  region: IN
+  source: Google
+  url: https://news.google.com/rss/search?tbm=nws&q=when:12h+cyber+incident&scoring=n&hl=en-IN&gl=IN&ceid=IN:en
+- category: google_news
+  region: GB
+  source: Google
+  url: https://news.google.com/rss/search?tbm=nws&q=when:12h+cyber+breach&scoring=n&hl=en-GB&gl=GB&ceid=GB:en
