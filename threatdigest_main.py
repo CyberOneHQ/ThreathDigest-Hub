@@ -28,7 +28,7 @@ def enrich_articles(articles):
         lang = detect_language(article["title"])
         translated_title = translate_text(article["title"], lang="en")
 
-        classification = classify_headline(translated_title)
+        classification = classify_article(translated_title)
         article.update({
             "translated_title": translated_title,
             "language": lang,
