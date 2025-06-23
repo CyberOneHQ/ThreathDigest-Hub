@@ -3,11 +3,11 @@
 import os
 import logging
 from datetime import datetime
+from modules.feed_fetcher import fetch_articles
 from modules.feed_loader import load_feeds_from_files
-from modules.fetcher import fetch_articles
-from modules.hasher import deduplicate_articles
+from modules.deduplicator import deduplicate_articles
 from modules.language_tools import detect_language, translate_text
-from modules.gpt_classifier import classify_headline
+from modules.ai_classifier import classify_article
 from modules.output_writer import (
     write_hourly_output,
     write_daily_output,
@@ -17,7 +17,7 @@ from modules.utils import get_current_hour_slug, get_today_slug
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s"
+    format='%(asctime)s | %(levelname)s | %(message)s',
 )
 
 def enrich_articles(articles):
