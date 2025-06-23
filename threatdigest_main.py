@@ -23,20 +23,21 @@ log_file = os.path.join(log_dir, f"run_{datetime.utcnow().strftime('%Y%m%d_%H%M%
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s | %(levelname)s | %(message)s',
+    format="%(asctime)s | %(levelname)s | %(message)s",
     handlers=[
         logging.FileHandler(log_file),
-        logging.StreamHandler()  # Still prints to console
+        logging.StreamHandler()
     ]
 )
 
+# ==== Article Enrichment ====
 def enrich_articles(articles):
     enriched = []
     for article in articles:
         lang = detect_language(article["title"])
         translated_title = translate_text(article["title"], lang="en")
-
         classification = classify_article(translated_title)
+
         article.update({
             "translated_title": translated_title,
             "language": lang,
@@ -51,6 +52,7 @@ def enrich_articles(articles):
 
     return enriched
 
+# ==== Main Execution ====
 def main():
     logging.info("==== Starting ThreatDigest Main Run ====")
 
@@ -77,7 +79,7 @@ def main():
         logging.info("No new articles after deduplication.")
         return
 
-    # Step 4: Enrich only cyberattack-related articles
+    # Step 4: Enrich (filter only cyberattack-related)
     enriched_articles = enrich_articles(unique_articles)
     if not enriched_articles:
         logging.info("No cyberattack-related articles after classification.")
