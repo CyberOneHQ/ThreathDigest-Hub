@@ -39,15 +39,16 @@ def enrich_articles(articles):
         translated_title = translate_text(article["title"], lang="en")
         classification = classify_article(translated_title)
         full_content = extract_article_content(article["link"])
-
+        logging.info(f"Extracted {len(full_content)} characters from {article['link']}")
+        
         article.update({
             "translated_title": translated_title,
             "language": lang,
             "is_cyber_attack": classification.get("is_cyber_attack", False),
             "category": classification.get("category", "Unknown"),
             "confidence": classification.get("confidence", 0),
-            "timestamp": datetime.utcnow().isoformat(),
-            "full_content": full_content
+            "full_content": full_content,
+            "timestamp": datetime.utcnow().isoformat()
         })
 
         if article["is_cyber_attack"]:
