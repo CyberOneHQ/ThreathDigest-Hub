@@ -1,24 +1,63 @@
 import os
-import openai
-from dotenv import load_dotenv
-load_dotenv()
+import json
+import logging
+from openai import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-def classify_article(text):
-    messages = [
-        {"role": "system", "content": "You are a cybersecurity analyst. Return JSON with: threat_type, geo_location, threat_actor, cve_list, sector, is_critical."},
-        {"role": "user", "content": text}
-    ]
+# Standard category list
+CATEGORIES = [
+    "Ransomware",
+    "Phishing",
+    "DDoS",
+    "Data Breach",
+    "Malware",
+    "Insider Threat",
+    "Zero-Day Exploit",
+    "Nation-State Attack",
+    "Supply Chain Attack",
+    "Vulnerability Disclosure",
+    "Cyber Espionage",
+    "Hacktivism",
+    "Account Takeover",
+    "General Cyber Threat"
+]
+
+# GPT system prompt
+SYSTEM_PROMPT = (
+    "You are a cybersecurity analyst. You will receive a news headline. "
+    "Your job is to classify whether it is related to a cyberattack or not. "
+    f"If it is, assign it to one of the following categories:\n{CATEGORIES}\n"
+    "Respond strictly in JSON format:\n"
+    "{\"is_cyber_attack\": true/false, \"category\": \"<category>\", \"confidence\": 0-100}"
+)
+
+def classify_headline(headline: str) -> dict:
+    """
+    Uses OpenAI GPT-3.5 to classify a news headline.
+    Returns structured JSON dict.
+    """
     try:
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
+        messages = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": f"Classify this headline: {headline}"}
+        ]
+
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
             messages=messages,
-            max_tokens=300,
-            temperature=0.2
+            temperature=0.2,
+            max_tokens=150
         )
-        result = response['choices'][0]['message']['content']
-        return eval(result) if isinstance(result, str) else result
+
+        gpt_reply = response.choices[0].message.content.strip()
+        return json.loads(gpt_reply)
+
     except Exception as e:
-        print(f"[GPT Error] {e}")
-        return {}
+        logging.error(f"[GPT Error] Failed to classify headline:\n{headline}\nError: {e}")
+        return {
+            "is_cyber_attack": False,
+            "category": "General Cyber Threat",
+            "confidence": 0
+        }
