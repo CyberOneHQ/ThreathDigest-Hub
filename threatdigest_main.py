@@ -37,7 +37,10 @@ def enrich_articles(articles):
             "confidence": classification.get("confidence", 0),
             "timestamp": datetime.utcnow().isoformat()
         })
-        enriched.append(article)
+
+        if article["is_cyber_attack"]:
+            enriched.append(article)
+
     return enriched
 
 def main():
@@ -62,20 +65,17 @@ def main():
 
     # Step 3: Deduplicate
     unique_articles = deduplicate_articles(raw_articles)
-    logging.info(f"Deduplicated articles. Unique entries: {len(unique_articles)}")
-
     if not unique_articles:
         logging.info("No new articles after deduplication.")
         return
 
-    # Step 4: Enrich
+    # Step 4: Enrich only cyberattack-related articles
     enriched_articles = enrich_articles(unique_articles)
+    if not enriched_articles:
+        logging.info("No cyberattack-related articles after classification.")
+        return
 
     # Step 5: Output
-    hour_slug = get_current_hour_slug()
-    day_slug = get_today_slug()
-
-    # Save outputs
     write_hourly_output(enriched_articles)
     write_daily_output(enriched_articles)
     write_rss_output(enriched_articles)
