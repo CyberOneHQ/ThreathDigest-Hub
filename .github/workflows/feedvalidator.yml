@@ -1,31 +1,24 @@
 name: Manual Feed Validator
 
 on:
-  workflow_dispatch:
-    inputs:
-      config_file:
-        description: 'Path to feed config file (optional)'
-        required: false
-        default: 'config/threatdigest.yml'
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
 
 jobs:
-  validate:
+  validate-feeds:
     runs-on: ubuntu-latest
-    name: Validate RSS Feed List
+    name: Validate All RSS Feeds
+
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
-      - name: Install Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install feedparser pyyaml requests
+      - name: Install dependencies
+        run: pip install requests pyyaml
 
       - name: Run Feed Validator
-        run: |
-          python scripts/validate_feeds.py ${{ github.event.inputs.config_file }}
+        run: python scripts/validate_feeds.py
