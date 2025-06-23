@@ -1,6 +1,7 @@
 feedparser
 feedgen
 openai==0.28
+newspaper3k
 requests
 beautifulsoup4
 readability-lxml
