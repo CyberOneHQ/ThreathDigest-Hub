@@ -1,3 +1,5 @@
+#output_writer.py
+
 import os
 import json
 import logging
@@ -35,12 +37,13 @@ def write_rss_output(articles):
     fg.title("ThreatDigest Hub - Curated Cyber Incidents")
     fg.link(href="https://yourdomain.com", rel="self")
     fg.language("en")
+    fg.description("A curated list of recent cyber incidents, attacks, and security threats.")
 
     for article in articles:
         fe = fg.add_entry()
         fe.title(article.get("title", "No Title"))
         fe.link(href=article.get("link", "#"))
-        fe.description(article.get("summary", ""))
+        fe.description(article.get("summary", "No summary available."))
         fe.pubDate(article.get("published", datetime.utcnow().isoformat()))
 
     ensure_dir(RSS_PATH.parent)
