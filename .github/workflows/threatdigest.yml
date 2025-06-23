@@ -1,32 +1,32 @@
-name: ThreatDigest Collector
+name: ThreatDigest Daily Collector
 
 on:
+  workflow_dispatch:    # Allow manual trigger
   schedule:
-    - cron: '25 * * * *'  # Every hour at 25 minutes
-  workflow_dispatch:
+    - cron: '0 * * * *'  # Runs every hour (UTC)
 
 jobs:
   run-threatdigest:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: 3.11
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run ThreatDigest pipeline
+      - name: Run ThreatDigest
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           AZURE_TRANSLATOR_KEY: ${{ secrets.AZURE_TRANSLATOR_KEY }}
           AZURE_TRANSLATOR_REGION: ${{ secrets.AZURE_TRANSLATOR_REGION }}
         run: |
-          python src/threatdigest_main.py
+          python threatdigest_main.py
