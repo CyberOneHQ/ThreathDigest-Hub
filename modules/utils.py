@@ -1,18 +1,48 @@
-# modules/utils.py
-
-import os
-import yaml
-import logging
+from datetime import datetime
 from pathlib import Path
+import os
+import logging
 
-def load_yaml_file(filepath):
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return yaml.safe_load(f).get('feeds', [])
-    except Exception as e:
-        logging.error(f"[YAML Error] Failed to load: {filepath} — {e}")
-        return []
+# Time slugs
+def get_current_hour_slug():
+    return datetime.utcnow().strftime("%Y-%m-%d_%H")
 
-def ensure_output_directory():
-    for folder in ["data/output", "logs", "data/state"]:
-        Path(folder).mkdir(parents=True, exist_ok=True)
+def get_today_slug():
+    return datetime.utcnow().strftime("%Y-%m-%d")
+
+def get_week_slug(dt=None):
+    dt = dt or datetime.utcnow()
+    return dt.strftime("%Y-W%U")  # Week number of the year
+
+def get_month_slug(dt=None):
+    dt = dt or datetime.utcnow()
+    return dt.strftime("%Y-%m")
+
+def get_year_slug(dt=None):
+    dt = dt or datetime.utcnow()
+    return dt.strftime("%Y")
+
+# Output path generator
+def make_output_path(category, slug):
+    base = Path("data") / "output" / category
+    base.mkdir(parents=True, exist_ok=True)
+    return base / f"{slug}.json"
+
+# Generic directory creator
+def ensure_output_directory(path=None):
+    if path:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
+    else:
+        Path("data/output").mkdir(parents=True, exist_ok=True)
+
+# Logging helper
+def setup_logging(log_name="threatdigest.log"):
+    Path("logs").mkdir(exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(f"logs/{log_name}"),
+            logging.StreamHandler()
+        ]
+    )
