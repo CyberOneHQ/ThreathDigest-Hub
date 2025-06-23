@@ -1,0 +1,26 @@
+# ==== Module Imports ====
+import openai
+import logging
+
+# ==== GPT Summarizer ====
+def summarize_content(content):
+    try:
+        if not content.strip():
+            return ""
+
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Summarize this cybersecurity-related article in 3-4 sentences."},
+                {"role": "user", "content": content[:4000]}  # Truncate for safety
+            ],
+            max_tokens=300,
+            temperature=0.7
+        )
+        summary = response.choices[0].message["content"].strip()
+        logging.info("Generated GPT summary.")
+        return summary
+
+    except Exception as e:
+        logging.error(f"GPT summarization failed: {e}")
+        return ""
