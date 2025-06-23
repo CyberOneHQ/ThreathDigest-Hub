@@ -1,61 +1,46 @@
 # ==== Module Imports ====
 import os
-import json
 import logging
+import hashlib
 from pathlib import Path
-from datetime import datetime
-from feedgen.feed import FeedGenerator
 
-# ==== Output Paths ====
-BASE_OUTPUT = Path(__file__).parent.parent / "data" / "output"
-HOURLY_DIR = BASE_OUTPUT / "hourly"
-DAILY_DIR = BASE_OUTPUT / "daily"
-RSS_PATH = BASE_OUTPUT / "rss_cyberattacks.xml"
-STATIC_HOURLY = BASE_OUTPUT / "hourly_latest.json"
-STATIC_DAILY = BASE_OUTPUT / "daily_latest.json"
+# ==== State File Path ====
+SEEN_HASHES_FILE = Path(__file__).parent.parent / "state" / "seen_hashes.txt"
 
-# ==== Directory Helper ====
-def ensure_dir(path):
-    os.makedirs(path, exist_ok=True)
+# ==== Load Seen Hashes ====
+def load_seen_hashes():
+    if not SEEN_HASHES_FILE.exists():
+        return set()
+    with open(SEEN_HASHES_FILE, "r") as f:
+        return set(line.strip() for line in f.readlines())
 
-# ==== JSON Writer ====
-def write_json(data, path):
-    ensure_dir(path.parent)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    logging.info(f"Saved JSON to {path}")
+# ==== Save Seen Hashes ====
+def save_seen_hashes(hashes):
+    SEEN_HASHES_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(SEEN_HASHES_FILE, "w") as f:
+        for h in sorted(hashes):
+            f.write(f"{h}\n")
 
-# ==== Write Hourly File ====
-def write_hourly_output(articles):
-    timestamp = datetime.utcnow().strftime("%Y-%m-%d_%H")
-    filename = f"{timestamp}.json"
-    path = HOURLY_DIR / filename
-    write_json(articles, path)
-    write_json(articles, STATIC_HOURLY)
-
-# ==== Write Daily File ====
-def write_daily_output(articles):
-    date = datetime.utcnow().strftime("%Y-%m-%d")
-    filename = f"{date}.json"
-    path = DAILY_DIR / filename
-    write_json(articles, path)
-    write_json(articles, STATIC_DAILY)
-
-# ==== Write RSS Feed ====
-def write_rss_output(articles):
-    fg = FeedGenerator()
-    fg.id("https://yourdomain.com/threatdigest")
-    fg.title("ThreatDigest Hub - Curated Cyber Incidents")
-    fg.link(href="https://yourdomain.com", rel="self")
-    fg.language("en")
+# ==== Deduplication Logic ====
+def deduplicate_articles(articles):
+    seen_hashes = load_seen_hashes()
+    new_hashes = set()
+    unique_articles = []
 
     for article in articles:
-        fe = fg.add_entry()
-        fe.title(article.get("title", "No Title"))
-        fe.link(href=article.get("link", "#"))
-        fe.description(article.get("summary", ""))
-        fe.pubDate(article.get("published", datetime.utcnow().isoformat()))
+        raw_hash = article.get("hash")
+        if not raw_hash:
+            raw_hash = hashlib.sha256((article["title"] + article["link"]).encode()).hexdigest()
+            article["hash"] = raw_hash
 
-    ensure_dir(RSS_PATH.parent)
-    fg.rss_file(str(RSS_PATH))
-    logging.info(f"RSS feed saved to {RSS_PATH}")
+        if raw_hash not in seen_hashes:
+            unique_articles.append(article)
+            new_hashes.add(raw_hash)
+        else:
+            logging.info(f"Duplicate skipped: {article['link']}")
+
+    total_seen = seen_hashes.union(new_hashes)
+    save_seen_hashes(total_seen)
+
+    logging.info(f"Deduplicated articles. Unique entries: {len(unique_articles)}")
+    return unique_articles
