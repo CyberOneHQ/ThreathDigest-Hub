@@ -1,49 +1,58 @@
-import os
-import yaml
+# scripts/validate_feeds.py
+
+import requests
 import feedparser
-from pathlib import Path
+import yaml
+import sys
+import logging
 
-CONFIG_DIR = Path(__file__).parent.parent / "config"
-FEED_FILES = ["feeds_google.yaml", "feeds_bing.yaml", "feeds_native.yaml"]
+DEFAULT_CONFIG = "config/threatdigest.yml"
+TIMEOUT = 10
 
-def load_yaml_feeds(filepath):
+logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
+
+def load_yaml_feeds(path):
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            data = yaml.safe_load(f)
-            return data.get('feeds', [])
+        with open(path, "r") as f:
+            return yaml.safe_load(f)
     except Exception as e:
-        print(f"[ERROR] Failed to load {filepath.name}: {e}")
+        logging.error(f"Failed to load feed config: {e}")
         return []
 
 def validate_feed(url):
-    parsed = feedparser.parse(url)
-    if not parsed.entries:
-        print(f"[WARN] No entries found for: {url}")
-        return False
-    return True
+    try:
+        response = requests.get(url, timeout=TIMEOUT)
+        if response.status_code != 200:
+            return False, f"HTTP {response.status_code}"
+        parsed = feedparser.parse(response.text)
+        if not parsed.entries:
+            return False, "No entries found"
+        return True, f"{len(parsed.entries)} entries"
+    except requests.exceptions.Timeout:
+        return False, "Timeout"
+    except Exception as e:
+        return False, str(e)
 
-def main():
-    failed = 0
-    for filename in FEED_FILES:
-        filepath = CONFIG_DIR / filename
-        if not filepath.exists():
-            print(f"[ERROR] File not found: {filename}")
-            failed += 1
+def validate_feeds(config_path):
+    feeds = load_yaml_feeds(config_path)
+    if not feeds:
+        logging.warning("No feeds to validate.")
+        return
+
+    print(f"Validating {len(feeds)} feeds from {config_path}...\n")
+
+    for feed in feeds:
+        url = feed.get("url")
+        name = feed.get("name", "Unnamed Feed")
+        if not url:
+            print(f"❌ {name}: Missing URL")
             continue
-
-        feeds = load_yaml_feeds(filepath)
-        for feed in feeds:
-            url = feed.get("url")
-            if not url or not validate_feed(url):
-                print(f"[FAIL] Unreachable or invalid feed: {url}")
-                failed += 1
-
-    if failed > 0:
-        print(f"[ERROR] {failed} feed(s) failed validation.")
-        exit(1)
-    else:
-        print("[SUCCESS] All feeds validated.")
-        exit(0)
+        ok, message = validate_feed(url)
+        if ok:
+            print(f"✅ {name}: {url} → {message}")
+        else:
+            print(f"❌ {name}: {url} → {message}")
 
 if __name__ == "__main__":
-    main()
+    config_file = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_CONFIG
+    validate_feeds(config_file)
