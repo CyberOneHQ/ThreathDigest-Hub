@@ -1,2 +1,11 @@
-- https://news.google.com/rss/search?q=cyber+attack&hl=en-US&gl=US&ceid=US:en
-- https://news.google.com/rss/search?q=ransomware&hl=en-IN&gl=IN&ceid=IN:en
+- url: https://news.google.com/rss/search?q=cyber+attack&hl=en-US&gl=US&ceid=US:en
+  category: Google
+  region: Global
+
+- url: https://news.google.com/rss/search?q=cybersecurity&hl=en-GB&gl=GB&ceid=GB:en
+  category: Google
+  region: UK
+
+- url: https://news.google.com/rss/search?q=cyber+incident&hl=en-AU&gl=AU&ceid=AU:en
+  category: Google
+  region: Australia
