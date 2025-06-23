@@ -1,52 +1,49 @@
 import os
-import logging
-import feedparser
 import yaml
+import feedparser
 from pathlib import Path
 
 CONFIG_DIR = Path(__file__).parent.parent / "config"
 FEED_FILES = ["feeds_google.yaml", "feeds_bing.yaml", "feeds_native.yaml"]
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(levelname)s | %(message)s')
-
-def load_yaml_file(filepath):
+def load_yaml_feeds(filepath):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
             return data.get('feeds', [])
     except Exception as e:
-        logging.error(f"Failed to load {filepath.name}: {e}")
+        print(f"[ERROR] Failed to load {filepath.name}: {e}")
         return []
 
-def validate_feed_url(url):
-    try:
-        feed = feedparser.parse(url)
-        if feed.bozo:
-            raise Exception(feed.bozo_exception)
-        if not feed.entries:
-            logging.warning(f"Feed valid but empty: {url}")
-        return True
-    except Exception as e:
-        logging.error(f"Invalid feed URL: {url} | Error: {e}")
+def validate_feed(url):
+    parsed = feedparser.parse(url)
+    if not parsed.entries:
+        print(f"[WARN] No entries found for: {url}")
         return False
+    return True
 
-def validate_all_feeds():
-    all_feeds = []
-    for fname in FEED_FILES:
-        path = CONFIG_DIR / fname
-        if not path.exists():
-            logging.warning(f"Missing config file: {fname}")
+def main():
+    failed = 0
+    for filename in FEED_FILES:
+        filepath = CONFIG_DIR / filename
+        if not filepath.exists():
+            print(f"[ERROR] File not found: {filename}")
+            failed += 1
             continue
-        feeds = load_yaml_file(path)
+
+        feeds = load_yaml_feeds(filepath)
         for feed in feeds:
-            url = feed.get('url')
-            if url:
-                result = validate_feed_url(url)
-                status = "VALID" if result else "INVALID"
-                logging.info(f"[{status}] {url}")
-            else:
-                logging.warning(f"Missing URL in entry: {feed}")
+            url = feed.get("url")
+            if not url or not validate_feed(url):
+                print(f"[FAIL] Unreachable or invalid feed: {url}")
+                failed += 1
+
+    if failed > 0:
+        print(f"[ERROR] {failed} feed(s) failed validation.")
+        exit(1)
+    else:
+        print("[SUCCESS] All feeds validated.")
+        exit(0)
 
 if __name__ == "__main__":
-    logging.info("=== Validating Feed Sources ===")
-    validate_all_feeds()
+    main()
