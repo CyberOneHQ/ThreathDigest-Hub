@@ -1,1 +1,6 @@
-https://www.bing.com/news/search?q=cyber+attack&format=RSS
+feeds:
+  - url: "https://www.bing.com/news/search?q=cyber+attack&format=rss"
+  - url: "https://www.bing.com/news/search?q=data+breach&format=rss"
+  - url: "https://www.bing.com/news/search?q=ransomware&format=rss"
+  - url: "https://www.bing.com/news/search?q=phishing&format=rss"
+  - url: "https://www.bing.com/news/search?q=zero+day+exploit&format=rss"
