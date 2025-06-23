@@ -1,0 +1,17 @@
+{
+  "rss_feed_urls_en": [
+    {
+      "url": "https://news.google.com/rss/search?tbm=nws&q=when:12h+cyber+attack&hl=en-US&gl=US&ceid=US:en",
+      "region": "US",
+      "type": "aggregated"
+    }
+  ],
+  "rss_feed_urls_native": [
+    {
+      "url": "https://blog.talosintelligence.com/rss/",
+      "region": "Global",
+      "type": "intel_blog"
+    }
+  ],
+  "rss_feed_urls_other": []
+}

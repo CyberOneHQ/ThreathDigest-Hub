@@ -1,0 +1,8 @@
+feedparser
+feedgen
+openai
+requests
+beautifulsoup4
+readability-lxml
+python-dotenv
+newspaper3k
