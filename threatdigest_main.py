@@ -2,13 +2,14 @@
 import os
 import logging
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ==== Local Modules ====
 from modules.feed_fetcher import fetch_articles
 from modules.feed_loader import load_feeds_from_files
 from modules.deduplicator import deduplicate_articles
 from modules.language_tools import detect_language, translate_text
-from modules.article_scraper import extract_article_content
+from modules.article_scraper import process_urls_in_parallel
 from modules.ai_summarizer import summarize_content 
 from modules.logger_utils import setup_logger, log_article_summary
 from modules.ai_classifier import classify_article
@@ -23,27 +24,30 @@ from modules.utils import get_current_hour_slug, get_today_slug
 def enrich_articles(articles, summarize=False):
     enriched = []
 
+    # Extract content in parallel first
+    url_list = [a["link"] for a in articles]
+    url_to_content = process_urls_in_parallel(url_list)
+
     for article in articles:
         lang = detect_language(article["title"])
         translated_title = translate_text(article["title"], lang="en")
 
         classification = classify_article(translated_title)
+        clean_url = article["link"]
+        full_content = url_to_content.get(clean_url, "")
 
-        # Extract full content
-        full_content = extract_article_content(article["link"])
         if full_content:
-            logging.info(f"Extracted {len(full_content)} characters from {article['link']}")
+            logging.info(f"Extracted {len(full_content)} characters from {clean_url}")
         else:
-            logging.warning(f"No content extracted from {article['link']}")
+            logging.warning(f"No content extracted from {clean_url}")
 
-        # GPT summarization
         summary = ""
         if summarize and full_content:
             try:
                 summary = summarize_content(full_content)
-                log_article_summary(article["link"], summary)
+                log_article_summary(clean_url, summary)
             except Exception as e:
-                logging.error(f"Summary failed for {article['link']}: {e}")
+                logging.error(f"Summary failed for {clean_url}: {e}")
 
         article.update({
             "translated_title": translated_title,
