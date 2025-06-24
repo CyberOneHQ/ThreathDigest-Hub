@@ -19,7 +19,7 @@ from modules.output_writer import (
 from modules.utils import get_current_hour_slug, get_today_slug
 
 # ==== Logging Setup ====
-log_dir = os.path.join("data", "logs")
+log_dir = os.path.join("data", "logs", "run_logs")
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, f"run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log")
 
