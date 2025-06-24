@@ -55,17 +55,17 @@ def extract_with_fallback(url):
 def extract_article_content(raw_url):
     clean_url = resolve_original_url(raw_url)
     logging.info(f"Processing: {clean_url}")
-    
+
     content = extract_with_newspaper(clean_url)
     if content:
         logging.info(f"Extracted {len(content)} chars using newspaper3k")
         return clean_url, content
-    
+
     content = extract_with_fallback(clean_url)
     if content:
         logging.info(f"Extracted {len(content)} chars using fallback parser")
         return clean_url, content
-    
+
     logging.warning(f"No content extracted from {clean_url}")
     return clean_url, None
 
