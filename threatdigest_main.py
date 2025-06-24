@@ -9,7 +9,7 @@ from modules.feed_fetcher import fetch_articles
 from modules.feed_loader import load_feeds_from_files
 from modules.deduplicator import deduplicate_articles
 from modules.language_tools import detect_language, translate_text
-from modules.article_scraper import process_urls_in_parallel, extract_article_content
+from modules.article_scraper import extract_article_content, process_urls_in_parallel
 from modules.ai_summarizer import summarize_content 
 from modules.logger_utils import setup_logger, log_article_summary
 from modules.ai_classifier import classify_article
