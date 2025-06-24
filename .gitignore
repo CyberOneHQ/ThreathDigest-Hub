@@ -24,3 +24,6 @@ state/
 # OS files
 *.swp
 .DS_Store
+
+
+📦 Add .gitignore to exclude logs, outputs, and secrets
