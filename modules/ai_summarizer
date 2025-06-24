@@ -1,27 +1,33 @@
 # ==== Module Imports ====
-import os
-import json
-from datetime import datetime
-from pathlib import Path
+import openai
+import logging
 
-# ==== Summary Logger ====
-def log_article_summary(article_link, summary_text):
+# ==== Summarize Article Content ====
+def summarize_content(content):
+    if not content.strip():
+        logging.warning("No content to summarize.")
+        return ""
+
     try:
-        # Prepare output path
-        summary_dir = Path("data/logs/summaries")
-        summary_dir.mkdir(parents=True, exist_ok=True)
-        summary_file = summary_dir / f"summary_{datetime.utcnow().date()}.jsonl"
+        prompt = (
+            "You are a cybersecurity analyst. Summarize the following article "
+            "in 3–4 concise sentences, focusing on the security incident, impact, and threat context:\n\n"
+            f"{content[:4000]}"  # Limit token usage
+        )
 
-        # Prepare log entry
-        entry = {
-            "url": article_link,
-            "summary": summary_text,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a cybersecurity analyst summarizing incidents."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=300
+        )
 
-        # Write to file in append mode
-        with open(summary_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        summary = response.choices[0].message.content.strip()
+        return summary
 
     except Exception as e:
-        print(f"[LOGGING ERROR] Failed to log summary for {article_link}: {e}")
+        logging.error(f"Failed to summarize content: {e}")
+        return ""
