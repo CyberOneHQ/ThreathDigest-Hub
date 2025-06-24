@@ -1,112 +1,59 @@
 # ==== Module Imports ====
+import feedparser
 import requests
-from urllib.parse import urlparse, parse_qs
-from newspaper import Article
-from bs4 import BeautifulSoup
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+import hashlib
 import logging
 
-# ==== Logging Setup ====
-logging.basicConfig(
-    format="%(asctime)s | %(levelname)s | %(message)s",
-    level=logging.INFO
-)
+# ==== Local Module ====
+from modules.article_scraper import resolve_original_url  # Accurate resolution
 
-# ==== Embedded URL Extraction ====
-def extract_embedded_url(url):
-    parsed = urlparse(url)
-    query = parse_qs(parsed.query)
-    return query.get('url', [None])[0]
+# ==== Shared State ====
+articles = []
+lock = threading.Lock()
 
-# ==== Redirect Resolution via HEAD ====
-def follow_redirects(url):
+# ==== Feed Fetching Logic ====
+def fetch_feed(url):
     try:
-        response = requests.head(url, allow_redirects=True, timeout=5)
-        if response.status_code in [301, 302] and 'Location' in response.headers:
-            return response.headers['Location']
-        return response.url
-    except requests.RequestException as e:
-        logging.warning(f"Redirect failed for {url}: {e}")
-        return None
+        parsed = feedparser.parse(url)
+        local_articles = []
 
-# ==== Canonical URL Extraction from HTML ====
-def extract_canonical_from_html(url):
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        resp = requests.get(url, headers=headers, timeout=8)
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        canonical = soup.find('link', rel='canonical')
-        if canonical and canonical.get('href'):
-            return canonical['href']
+        for entry in parsed.entries:
+            clean_link = resolve_original_url(entry.link)
+
+            article_hash = hashlib.sha256((entry.title + clean_link).encode()).hexdigest()
+            local_articles.append({
+                'title': entry.title,
+                'link': clean_link,
+                'published': entry.get('published', ''),
+                'summary': entry.get('summary', ''),
+                'hash': article_hash,
+                'source': url
+            })
+
+        with lock:
+            articles.extend(local_articles)
+
+        logging.info(f"Fetched {len(local_articles)} articles from {url}")
+
     except Exception as e:
-        logging.warning(f"Failed to extract canonical URL from {url}: {e}")
-    return url
+        logging.error(f"Error fetching {url}: {e}")
 
-# ==== Final URL Resolver ====
-def resolve_original_url(url):
-    embedded = extract_embedded_url(url)
-    if embedded:
-        return embedded
 
-    redirected = follow_redirects(url)
-    if redirected and redirected != url:
-        return redirected
+def fetch_articles_multithreaded(feeds_config):
+    threads = []
+    for feed in feeds_config:
+        t = threading.Thread(target=fetch_feed, args=(feed['url'],))
+        t.start()
+        threads.append(t)
 
-    canonical = extract_canonical_from_html(url)
-    return canonical or url
+    for t in threads:
+        t.join()
 
-# ==== Primary Scraper Using newspaper3k ====
-def extract_with_newspaper(url):
-    try:
-        article = Article(url)
-        article.download()
-        article.parse()
-        return article.text.strip()
-    except Exception as e:
-        logging.warning(f"Newspaper3k failed for {url}: {e}")
-        return None
+    return articles
 
-# ==== Fallback Scraper Using BeautifulSoup ====
-def extract_with_fallback(url):
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=8)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        paragraphs = soup.find_all('p')
-        content = ' '.join(p.get_text() for p in paragraphs)
-        return content.strip() if content else None
-    except Exception as e:
-        logging.error(f"Fallback scraping failed for {url}: {e}")
-        return None
 
-# ==== Unified Content Extraction ====
-def extract_article_content(raw_url):
-    clean_url = resolve_original_url(raw_url)
-    logging.info(f"Processing: {clean_url}")
-
-    content = extract_with_newspaper(clean_url)
-    if content:
-        logging.info(f"Extracted {len(content)} chars using newspaper3k")
-        return clean_url, content
-
-    content = extract_with_fallback(clean_url)
-    if content:
-        logging.info(f"Extracted {len(content)} chars using fallback parser")
-        return clean_url, content
-
-    logging.warning(f"No content extracted from {clean_url}")
-    return clean_url, None
-
-# ==== Parallel Execution ====
-def process_urls_in_parallel(url_list, max_threads=8):
-    results = {}
-    with ThreadPoolExecutor(max_workers=max_threads) as executor:
-        future_to_url = {executor.submit(extract_article_content, url): url for url in url_list}
-        for future in as_completed(future_to_url):
-            url = future_to_url[future]
-            try:
-                clean_url, content = future.result()
-                results[clean_url] = content
-            except Exception as exc:
-                logging.error(f"Exception for {url}: {exc}")
-    return results
+def fetch_articles(feeds_config):
+    global articles
+    articles = []
+    return fetch_articles_multithreaded(feeds_config)
