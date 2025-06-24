@@ -10,6 +10,7 @@ from modules.deduplicator import deduplicate_articles
 from modules.language_tools import detect_language, translate_text
 from modules.article_scraper import extract_article_content
 from modules.ai_summarizer import summarize_content 
+from modules.logger_utils import setup_logger, log_article_summary
 from modules.ai_classifier import classify_article
 from modules.output_writer import (
     write_hourly_output,
@@ -17,20 +18,6 @@ from modules.output_writer import (
     write_rss_output,
 )
 from modules.utils import get_current_hour_slug, get_today_slug
-
-# ==== Logging Setup ====
-log_dir = os.path.join("data", "logs", "run_logs")
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, f"run_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log")
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
-    ]
-)
 
 # ==== Article Enrichment ====
 def enrich_articles(articles, summarize=False):
@@ -49,8 +36,14 @@ def enrich_articles(articles, summarize=False):
         else:
             logging.warning(f"No content extracted from {article['link']}")
 
-        # GPT summarization (optional)
-        summary = summarize_content(full_content) if summarize and full_content else ""
+        # GPT summarization
+        summary = ""
+        if summarize and full_content:
+            try:
+                summary = summarize_content(full_content)
+                log_article_summary(article["link"], summary)
+            except Exception as e:
+                logging.error(f"Summary failed for {article['link']}: {e}")
 
         article.update({
             "translated_title": translated_title,
@@ -70,6 +63,7 @@ def enrich_articles(articles, summarize=False):
 
 # ==== Main Execution ====
 def main():
+    setup_logger()
     logging.info("==== Starting ThreatDigest Main Run ====")
 
     # Step 1: Load feeds
@@ -95,13 +89,13 @@ def main():
         logging.info("No new articles after deduplication.")
         return
 
-    # Step 4: Enrich (filter only cyberattack-related)
-    enriched_articles = enrich_articles(unique_articles)
+    # Step 4: Enrich with classification, scraping, translation, GPT
+    enriched_articles = enrich_articles(unique_articles, summarize=True)
     if not enriched_articles:
-        logging.info("No cyberattack-related articles after classification.")
+        logging.info("No cyberattack-related articles after enrichment.")
         return
 
-    # Step 5: Output
+    # Step 5: Output to files
     write_hourly_output(enriched_articles)
     write_daily_output(enriched_articles)
     write_rss_output(enriched_articles)
