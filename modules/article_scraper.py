@@ -6,7 +6,7 @@ import hashlib
 import logging
 
 # ==== Local Module ====
-from modules.article_scraper import resolve_original_url  # Accurate resolution
+from modules.url_resolver import resolve_original_url  # Accurate resolution
 
 # ==== Shared State ====
 articles = []
