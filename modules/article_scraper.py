@@ -1,59 +1,71 @@
 # ==== Module Imports ====
-import feedparser
 import requests
-import threading
-import hashlib
+from newspaper import Article
+from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 
-# ==== Local Module ====
-from modules.url_resolver import resolve_original_url  # Accurate resolution
+# ==== Shared URL Resolver ====
+from modules.url_resolver import resolve_original_url
 
-# ==== Shared State ====
-articles = []
-lock = threading.Lock()
+# ==== Logging Setup ====
+logging.basicConfig(
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    level=logging.INFO
+)
 
-# ==== Feed Fetching Logic ====
-def fetch_feed(url):
+# ==== Primary Scraper Using newspaper3k ====
+def extract_with_newspaper(url):
     try:
-        parsed = feedparser.parse(url)
-        local_articles = []
-
-        for entry in parsed.entries:
-            clean_link = resolve_original_url(entry.link)
-
-            article_hash = hashlib.sha256((entry.title + clean_link).encode()).hexdigest()
-            local_articles.append({
-                'title': entry.title,
-                'link': clean_link,
-                'published': entry.get('published', ''),
-                'summary': entry.get('summary', ''),
-                'hash': article_hash,
-                'source': url
-            })
-
-        with lock:
-            articles.extend(local_articles)
-
-        logging.info(f"Fetched {len(local_articles)} articles from {url}")
-
+        article = Article(url)
+        article.download()
+        article.parse()
+        return article.text.strip()
     except Exception as e:
-        logging.error(f"Error fetching {url}: {e}")
+        logging.warning(f"Newspaper3k failed for {url}: {e}")
+        return None
 
+# ==== Fallback Scraper Using BeautifulSoup ====
+def extract_with_fallback(url):
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=8)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        paragraphs = soup.find_all('p')
+        content = ' '.join(p.get_text() for p in paragraphs)
+        return content.strip() if content else None
+    except Exception as e:
+        logging.error(f"Fallback scraping failed for {url}: {e}")
+        return None
 
-def fetch_articles_multithreaded(feeds_config):
-    threads = []
-    for feed in feeds_config:
-        t = threading.Thread(target=fetch_feed, args=(feed['url'],))
-        t.start()
-        threads.append(t)
+# ==== Unified Content Extraction ====
+def extract_article_content(raw_url):
+    clean_url = resolve_original_url(raw_url)
+    logging.info(f"Processing: {clean_url}")
 
-    for t in threads:
-        t.join()
+    content = extract_with_newspaper(clean_url)
+    if content:
+        logging.info(f"Extracted {len(content)} chars using newspaper3k")
+        return clean_url, content
 
-    return articles
+    content = extract_with_fallback(clean_url)
+    if content:
+        logging.info(f"Extracted {len(content)} chars using fallback parser")
+        return clean_url, content
 
+    logging.warning(f"No content extracted from {clean_url}")
+    return clean_url, None
 
-def fetch_articles(feeds_config):
-    global articles
-    articles = []
-    return fetch_articles_multithreaded(feeds_config)
+# ==== Parallel Execution ====
+def process_urls_in_parallel(url_list, max_threads=8):
+    results = {}
+    with ThreadPoolExecutor(max_workers=max_threads) as executor:
+        future_to_url = {executor.submit(extract_article_content, url): url for url in url_list}
+        for future in as_completed(future_to_url):
+            url = future_to_url[future]
+            try:
+                clean_url, content = future.result()
+                results[clean_url] = content
+            except Exception as exc:
+                logging.error(f"Exception for {url}: {exc}")
+    return results
