@@ -1,33 +1,27 @@
 # ==== Module Imports ====
-import openai
-import logging
+import os
+import json
+from datetime import datetime
+from pathlib import Path
 
-# ==== GPT Summarizer ====
-def summarize_content(content):
+# ==== Summary Logger ====
+def log_article_summary(article_link, summary_text):
     try:
-        if not content.strip():
-            return ""
+        # Prepare output path
+        summary_dir = Path("data/logs/summaries")
+        summary_dir.mkdir(parents=True, exist_ok=True)
+        summary_file = summary_dir / f"summary_{datetime.utcnow().date()}.jsonl"
 
-        response = openai.ChatCompletion.create(
-            model="gpt-4",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a cybersecurity analyst. Read the content and summarize it in 3 to 4 concise sentences. "
-                        "The summary should highlight the nature of the threat or incident, impacted entities, severity, "
-                        "and any relevant mitigation or response, without using bullet points."
-                    )
-                },
-                {"role": "user", "content": content[:4000]}
-            ],
-            max_tokens=300,
-            temperature=0.7
-        )
-        summary = response.choices[0].message["content"].strip()
-        logging.info("Generated GPT summary.")
-        return summary
+        # Prepare log entry
+        entry = {
+            "url": article_link,
+            "summary": summary_text,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+        # Write to file in append mode
+        with open(summary_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     except Exception as e:
-        logging.error(f"GPT summarization failed: {e}")
-        return ""
+        print(f"[LOGGING ERROR] Failed to log summary for {article_link}: {e}")
