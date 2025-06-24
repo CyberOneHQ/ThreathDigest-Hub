@@ -6,7 +6,7 @@ import hashlib
 import logging
 
 # ==== Local Module ====
-from modules.article_scraper import resolve_original_url  # Ensure imported
+from modules.article_scraper import resolve_original_url  # Accurate resolution
 
 # ==== Shared State ====
 articles = []
@@ -19,7 +19,7 @@ def fetch_feed(url):
         local_articles = []
 
         for entry in parsed.entries:
-            clean_link = resolve_original_url(entry.link)  # Resolve redirect early
+            clean_link = resolve_original_url(entry.link)
 
             article_hash = hashlib.sha256((entry.title + clean_link).encode()).hexdigest()
             local_articles.append({
@@ -39,6 +39,7 @@ def fetch_feed(url):
     except Exception as e:
         logging.error(f"Error fetching {url}: {e}")
 
+
 def fetch_articles_multithreaded(feeds_config):
     threads = []
     for feed in feeds_config:
@@ -50,6 +51,7 @@ def fetch_articles_multithreaded(feeds_config):
         t.join()
 
     return articles
+
 
 def fetch_articles(feeds_config):
     global articles
