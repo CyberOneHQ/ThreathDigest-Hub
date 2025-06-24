@@ -1,0 +1,26 @@
+# Logs and summaries
+data/logs/
+data/logs/run_logs/
+data/logs/summaries/
+
+# Generated JSON outputs
+data/output/hourly/
+data/output/daily/
+data/output/hourly_latest.json
+data/output/daily_latest.json
+data/output/rss_cyberattacks.xml
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Runtime state
+state/
+
+# Local env files
+.env
+.env.*
+
+# OS files
+*.swp
+.DS_Store
