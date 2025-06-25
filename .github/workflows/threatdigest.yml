@@ -43,6 +43,6 @@ jobs:
       # ==== 6. Commit and Push Outputs ====
       - name: 💾 Commit JSON/XML Outputs
         run: |
-          git add data/output/*.json data/output/*.xml || true
+          git add data/output/**/*.json data/output/**/*.xml || true
           git commit -m "🔄 Update ThreatDigest outputs [skip ci]" || echo "No changes to commit"
           git push || echo "Nothing to push"
